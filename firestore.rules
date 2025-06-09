@@ -1,0 +1,67 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+  
+    // Helper functions to make rules clean and readable
+    function isAdmin() {
+      // Checks if the requesting user has the 'isAdmin' flag in their user document.
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    function isUserInProject(projectId) {
+      // Checks if a mapping document exists linking the user to the project.
+      // THIS REQUIRES THE COMPOSITE ID: 'userId_projectId'
+      return exists(/databases/$(database)/documents/projectUsers/$(request.auth.uid + '_' + projectId));
+    }
+    
+    function isProjectOwner(projectId) {
+      // Checks if the user is in the 'owners' array of a specific project.
+      return request.auth.uid in get(/databases/$(database)/documents/projects/$(projectId)).data.owners;
+    }
+
+    // --- Collection Rules ---
+
+    match /users/{userId} {
+      allow read: if request.auth.uid != null;
+      allow create: if request.auth.uid == userId;
+      allow update: if (request.auth.uid == userId && !(request.resource.data.diff(resource.data).affectedKeys.hasAny(['isAdmin', 'role']))) || isAdmin();
+      allow delete: if isAdmin();
+    }
+    
+    match /projects/{projectId} {
+      allow read: if isUserInProject(projectId) || isAdmin();
+      allow write: if isAdmin();
+    }
+    
+    match /projectUsers/{mappingId} {
+        allow read: if isUserInProject(resource.data.projectId) || isAdmin();
+        allow write: if isAdmin();
+    }
+
+    match /tasks/{taskId} {
+      allow read, update: if isUserInProject(resource.data.projectId);
+      allow create: if isUserInProject(request.resource.data.projectId);
+      allow delete: if isProjectOwner(resource.data.projectId) || isAdmin();
+    }
+    
+    match /workReports/{reportId} {
+      allow read, write: if request.auth.uid == resource.data.userId;
+    }
+    
+    match /shiftSchedules/{projectId} {
+      allow read: if isUserInProject(projectId);
+      allow write: if isProjectOwner(projectId) || isAdmin();
+    }
+    
+    match /documents/{docId} {
+        allow read: if isUserInProject(resource.data.projectId);
+        allow create: if isProjectOwner(request.resource.data.projectId) || isAdmin();
+        allow update, delete: if isProjectOwner(resource.data.projectId) || isAdmin();
+    }
+    
+    match /invites/{inviteId} {
+        allow read, write: if false;
+    }
+  }
+}

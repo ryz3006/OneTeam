@@ -1,0 +1,17 @@
+{
+  "projects": {
+    "default": "d-operations---oneteam"
+  },
+  "targets": {
+    "d-operations---oneteam": {
+      "hosting": {
+        "public-ui": [
+          "d-operations---oneteam"
+        ],
+        "admin-ui": [
+          "d-operations-oneteam-admin"
+        ]
+      }
+    }
+  }
+}
