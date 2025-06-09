@@ -2,10 +2,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
 import { collection, doc, onSnapshot } from 'firebase/firestore';
-// Removed direct imports as they cause build errors with CDNs
-// import jsPDF from 'jspdf';
-// import 'jspdf-autotable';
-// import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 // --- Reusable Component for Stat Tiles ---
 const StatTile = ({ title, value, icon, onClick }) => (
@@ -82,16 +81,9 @@ const AdminDashboardPage = () => {
         };
         const sortedUsers = projectUsers.sort((a, b) => getSortOrder(a.designation) - getSortOrder(b.designation));
 
-        const matrix = sortedUsers.map((user, index) => ({
-            Level: `L${index + 2}`,
-            User: user.displayName || user.email,
-            Designation: user.designation,
-            Email: user.email,
-            'Contact Number': user.contactNumber || 'N/A'
-        }));
-
+        const matrix = [];
         if (selectedProject.commonContactEmail || selectedProject.commonContactNumber) {
-            matrix.unshift({
+            matrix.push({
                 Level: 'L1',
                 User: 'Common Contact',
                 Designation: 'L1 Support',
@@ -99,7 +91,28 @@ const AdminDashboardPage = () => {
                 'Contact Number': selectedProject.commonContactNumber || 'N/A'
             });
         }
+
+        if (sortedUsers.length > 0) {
+            let levelCounter = matrix.length + 1;
+            let lastDesignation = sortedUsers[0].designation;
+
+            sortedUsers.forEach((user, index) => {
+                if (index > 0 && user.designation !== lastDesignation) {
+                    levelCounter++;
+                }
+                matrix.push({
+                    Level: `L${levelCounter}`,
+                    User: user.displayName || user.email,
+                    Designation: user.designation,
+                    Email: user.email,
+                    'Contact Number': user.contactNumber || 'N/A'
+                });
+                lastDesignation = user.designation;
+            });
+        }
+        
         return matrix;
+
     }, [selectedProjectId, users, designations, selectedProject]);
 
     const downloadAsExcel = (data, filename) => {
