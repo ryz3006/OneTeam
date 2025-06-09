@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, onSnapshot, addDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, doc, updateDoc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 
 const DESIGNATIONS = [
   'Head - Delivery & Support', 'AVP - Support & Operations', 'Senior Manager - Operations',
@@ -15,8 +15,14 @@ const UserManagementPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
-  const [inviteEmail, setInviteEmail] = useState('');
   
+  const defaultNewUser = {
+    email: '',
+    password: '',
+    designation: DESIGNATIONS[0],
+    reportingTo: ''
+  };
+
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, "users"), (snapshot) => {
       const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -26,10 +32,10 @@ const UserManagementPage = () => {
     return unsubscribe;
   }, []);
 
-  const openInviteModal = () => {
+  const openAddUserModal = () => {
       setIsEditing(false);
+      setCurrentUser(defaultNewUser);
       setIsModalOpen(true);
-      setInviteEmail('');
   };
   
   const openEditModal = (user) => {
@@ -38,27 +44,47 @@ const UserManagementPage = () => {
       setIsModalOpen(true);
   };
   
-  const handleInviteUser = async (e) => {
-      e.preventDefault();
-      if (!inviteEmail) return;
+  const handleFormSubmit = async (e) => {
+    e.preventDefault();
+    if (isEditing) {
+        await handleEditUser();
+    } else {
+        await handleAddUser();
+    }
+  };
+
+  const handleAddUser = async () => {
+      if (!currentUser.email || !currentUser.password) return;
+      
+      // IMPORTANT: This is a placeholder. For production, user creation MUST
+      // be handled by a secure Cloud Function to avoid exposing admin credentials.
+      // The function would use the Firebase Admin SDK to create the user.
+      alert(`SIMULATION: Creating user ${currentUser.email}. In a real app, a Cloud Function would handle this.`);
+      
       try {
-          // In a real app, a Cloud Function would trigger on this doc creation
-          // to send an actual email with a registration link.
-          await addDoc(collection(db, "invites"), {
-              email: inviteEmail,
-              status: 'pending',
-              invitedAt: serverTimestamp()
-          });
-          alert(`Invite for ${inviteEmail} created. A backend function would now send an email.`);
-          setIsModalOpen(false);
+        // This is a placeholder for what the Cloud Function would do.
+        // We will create the user document in Firestore directly for now.
+        // NOTE: The Auth user is NOT created here. This requires a backend function.
+        const userDocRef = doc(db, "users", currentUser.email); // Use email as doc ID for simplicity
+        await setDoc(userDocRef, {
+            email: currentUser.email,
+            designation: currentUser.designation,
+            reportingTo: currentUser.reportingTo,
+            isAdmin: false, // Default to non-admin
+            createdAt: serverTimestamp()
+        });
+        
+        alert(`User document for ${currentUser.email} created in Firestore.`);
+        setIsModalOpen(false);
+        setCurrentUser(null);
+
       } catch (error) {
-          console.error("Error creating invite: ", error);
-          alert("Failed to create invite.");
+          console.error("Error adding user document: ", error);
+          alert("Failed to add user document.");
       }
   };
 
-  const handleEditUser = async (e) => {
-    e.preventDefault();
+  const handleEditUser = async () => {
     if (!currentUser) return;
     try {
         const userRef = doc(db, "users", currentUser.id);
@@ -73,6 +99,20 @@ const UserManagementPage = () => {
         alert("Failed to update user.");
     }
   };
+
+  const handleDeleteUser = async (userId) => {
+      if(window.confirm("Are you sure you want to delete this user? This will only remove their Firestore record, not their authentication account.")) {
+          try {
+              // IMPORTANT: This only deletes the Firestore record. Deleting the actual
+              // Firebase Auth user requires a Cloud Function with admin privileges.
+              await deleteDoc(doc(db, "users", userId));
+              alert("User document deleted. A backend function is needed to delete the auth account.");
+          } catch(error) {
+              console.error("Error deleting user document:", error);
+              alert("Failed to delete user document.");
+          }
+      }
+  }
   
   const handleUserInputChange = (e) => {
       const { name, value } = e.target;
@@ -80,51 +120,36 @@ const UserManagementPage = () => {
   }
 
   const renderModal = () => {
-    if (!isModalOpen) return null;
-
-    if (isEditing) {
-        return (
-            <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4">
-              <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-lg">
-                <h2 className="text-2xl font-bold mb-6 dark:text-white">Edit User: {currentUser.displayName || currentUser.email}</h2>
-                <form onSubmit={handleEditUser}>
-                  <div className="space-y-4">
-                    <div>
-                        <label className="block mb-1 font-medium dark:text-gray-300">Designation</label>
-                        <select name="designation" value={currentUser.designation} onChange={handleUserInputChange} className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                            {DESIGNATIONS.map(d => <option key={d} value={d}>{d}</option>)}
-                        </select>
-                    </div>
-                     <div>
-                        <label className="block mb-1 font-medium dark:text-gray-300">Reporting To</label>
-                        <select name="reportingTo" value={currentUser.reportingTo} onChange={handleUserInputChange} className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                            <option value="">N/A</option>
-                            {users.filter(u => u.id !== currentUser.id).map(u => <option key={u.id} value={u.displayName || u.email}>{u.displayName || u.email}</option>)}
-                        </select>
-                    </div>
-                  </div>
-                  <div className="flex justify-end mt-6 space-x-4">
-                    <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded bg-gray-200 dark:bg-gray-600 dark:text-gray-200">Cancel</button>
-                    <button type="submit" className="px-4 py-2 rounded bg-blue-600 text-white">Save Changes</button>
-                  </div>
-                </form>
-              </div>
-            </div>
-        );
-    }
+    if (!isModalOpen || !currentUser) return null;
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4">
-            <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-lg">
-                <h2 className="text-2xl font-bold mb-6 dark:text-white">Invite New User</h2>
-                <form onSubmit={handleInviteUser}>
-                    <input type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="Enter user's email" required className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"/>
-                    <div className="flex justify-end mt-6 space-x-4">
-                        <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded bg-gray-200 dark:bg-gray-600 dark:text-gray-200">Cancel</button>
-                        <button type="submit" className="px-4 py-2 rounded bg-green-600 text-white">Send Invite</button>
-                    </div>
-                </form>
-            </div>
+          <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-lg">
+            <h2 className="text-2xl font-bold mb-6 dark:text-white">{isEditing ? 'Edit User' : 'Add New User'}</h2>
+            <form onSubmit={handleFormSubmit}>
+              <div className="space-y-4">
+                <input type="email" name="email" value={currentUser.email} onChange={handleUserInputChange} placeholder="Email (Username)" required className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600" disabled={isEditing}/>
+                {!isEditing && <input type="password" name="password" value={currentUser.password} onChange={handleUserInputChange} placeholder="Password" required className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600" />}
+                <div>
+                    <label className="block mb-1 font-medium dark:text-gray-300">Designation</label>
+                    <select name="designation" value={currentUser.designation} onChange={handleUserInputChange} className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        {DESIGNATIONS.map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                </div>
+                 <div>
+                    <label className="block mb-1 font-medium dark:text-gray-300">Reporting To</label>
+                    <select name="reportingTo" value={currentUser.reportingTo} onChange={handleUserInputChange} className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        <option value="">None</option>
+                        {users.filter(u => u.id !== currentUser.id).map(u => <option key={u.id} value={u.displayName || u.email}>{u.displayName || u.email}</option>)}
+                    </select>
+                </div>
+              </div>
+              <div className="flex justify-end mt-6 space-x-4">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded bg-gray-200 dark:bg-gray-600 dark:text-gray-200">Cancel</button>
+                <button type="submit" className="px-4 py-2 rounded bg-blue-600 text-white">{isEditing ? 'Save Changes' : 'Add User'}</button>
+              </div>
+            </form>
+          </div>
         </div>
     );
   };
@@ -134,7 +159,7 @@ const UserManagementPage = () => {
       <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-semibold text-gray-800 dark:text-white">Users</h2>
-          <button onClick={openInviteModal} className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">+ Invite User</button>
+          <button onClick={openAddUserModal} className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">+ Add User</button>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full bg-white dark:bg-gray-800">
@@ -155,8 +180,9 @@ const UserManagementPage = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{user.email}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{user.designation || 'Not Set'}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{user.reportingTo || 'N/A'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
                     <button onClick={() => openEditModal(user)} className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200">Edit</button>
+                    <button onClick={() => handleDeleteUser(user.id)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200">Delete</button>
                   </td>
                 </tr>
               ))}
