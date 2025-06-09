@@ -8,7 +8,6 @@ function App() {
     <Routes>
       <Route path="/" element={<AdminLoginPage />} />
       <Route path="/dashboard" element={<AdminDashboardPage />} />
-      {/* Add other admin routes for Project Management, Users, etc. here */}
     </Routes>
   );
 }
