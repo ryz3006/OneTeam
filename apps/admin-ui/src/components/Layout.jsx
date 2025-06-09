@@ -3,6 +3,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext.jsx';
 import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
+import LogoWithName from '../images/Logo_with_Name.png'; // Import the logo
 
 // --- Icon Components ---
 const DashboardIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>;
@@ -30,12 +31,12 @@ const Layout = ({ children }) => {
   };
 
   const getPageTitle = () => {
-    switch (location.pathname) {
-      case '/dashboard': return 'Dashboard';
-      case '/projects': return 'Project Management';
-      case '/users': return 'User Management';
-      default: return 'Admin Panel';
-    }
+    // A small fix to make the title dynamic based on hash routing
+    const path = location.pathname;
+    if (path.includes('/projects')) return 'Project Management';
+    if (path.includes('/users')) return 'User Management';
+    if (path.includes('/dashboard')) return 'Dashboard';
+    return 'Admin Panel';
   };
   
   const navItems = [
@@ -52,8 +53,8 @@ const Layout = ({ children }) => {
     <div className="flex h-screen bg-gray-100 dark:bg-gray-900 font-sans">
       {/* Sidebar */}
       <aside className={`bg-white dark:bg-gray-800 text-gray-800 dark:text-white w-64 space-y-6 py-7 px-2 absolute inset-y-0 left-0 transform ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} md:relative md:translate-x-0 transition duration-200 ease-in-out z-20 shadow-lg`}>
-        <a href="#" className="text-2xl font-bold px-4 flex items-center">
-          <span>6D Ops - OneTeam</span>
+        <a href="#/dashboard" className="px-4 flex items-center">
+          <img src={LogoWithName} alt="OneTeam Logo" className="h-10 w-auto" />
         </a>
         <nav>
           {navItems.map(item => (
@@ -98,5 +99,6 @@ const Layout = ({ children }) => {
     </div>
   );
 };
+
 
 export default Layout;
