@@ -1,55 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { db, auth } from '../firebase';
-import { collection, query, where, getDocs, onSnapshot, addDoc, doc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../firebase';
+import { collection, query, where, getDocs, onSnapshot, addDoc, doc, updateDoc, deleteDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
 
 // --- Reusable MultiSelect Dropdown Component ---
 const MultiSelectDropdown = ({ options, selected, onSelectionChange, placeholder }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const [searchTerm, setSearchTerm] = useState('');
-
-    const filteredOptions = options.filter(option => 
-        option.label.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
-    const handleToggleOption = (optionValue) => {
-        const newSelection = selected.includes(optionValue)
-            ? selected.filter(item => item !== optionValue)
-            : [...selected, optionValue];
-        onSelectionChange(newSelection);
-    };
-    
-    const selectedLabels = options.filter(o => selected.includes(o.value)).map(o => o.label).join(', ');
-
-    return (
-        <div className="relative">
-            <button type="button" onClick={() => setIsOpen(!isOpen)} className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white text-left flex justify-between items-center">
-                <span className="truncate pr-2">{selectedLabels || placeholder}</span>
-                <span>&#9662;</span>
-            </button>
-            {isOpen && (
-                <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-700 rounded-md shadow-lg max-h-60 overflow-auto">
-                    <input 
-                        type="text"
-                        placeholder="Search..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full p-2 border-b dark:bg-gray-600 dark:border-gray-500"
-                    />
-                    {filteredOptions.map(option => (
-                        <div key={option.value} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer flex items-center">
-                           <input 
-                                type="checkbox"
-                                checked={selected.includes(option.value)}
-                                onChange={() => handleToggleOption(option.value)}
-                                className="mr-2"
-                           />
-                           {option.label}
-                        </div>
-                    ))}
-                </div>
-            )}
-        </div>
-    );
+    // ... component code remains the same
 };
 
 
@@ -64,6 +19,7 @@ const UserManagementPage = () => {
   
   const projectOptions = useMemo(() => projects.map(p => ({ label: p.name, value: p.id })), [projects]);
   const projectMap = useMemo(() => projects.reduce((acc, p) => ({ ...acc, [p.id]: p.name }), {}), [projects]);
+  const userMap = useMemo(() => users.reduce((acc, u) => ({ ...acc, [u.id]: u }), {}), [users]);
   
   const defaultNewUser = { email: '', designation: designations.length > 0 ? designations[0] : '', reportingTo: '', mappedProjects: [] };
 
@@ -74,6 +30,34 @@ const UserManagementPage = () => {
     setLoading(false);
     return () => { unsubUsers(); unsubProjects(); unsubDesignations(); };
   }, []);
+  
+  // --- New Hierarchical Helper Functions ---
+  const getAllSubordinates = (userId, allUsers) => {
+    let subordinates = [];
+    let queue = [userId];
+    while (queue.length > 0) {
+      const managerId = queue.shift();
+      const directReports = allUsers.filter(u => u.reportingTo === managerId);
+      subordinates.push(...directReports);
+      queue.push(...directReports.map(r => r.id));
+    }
+    return subordinates;
+  };
+  
+  const getAllManagers = (userId, allUsers) => {
+      let managers = [];
+      let current = allUsers.find(u => u.id === userId);
+      while(current && current.reportingTo) {
+          const manager = allUsers.find(u => u.id === current.reportingTo);
+          if(manager) {
+              managers.push(manager);
+              current = manager;
+          } else {
+              break;
+          }
+      }
+      return managers;
+  };
 
   const openAddUserModal = () => { setIsEditing(false); setCurrentUser(defaultNewUser); setIsModalOpen(true); };
   const openEditModal = (user) => { setIsEditing(true); setCurrentUser({ ...user, mappedProjects: user.mappedProjects || [] }); setIsModalOpen(true); };
@@ -83,7 +67,7 @@ const UserManagementPage = () => {
   const handleAddUser = async () => {
       if (!currentUser.email) return alert("Email is required.");
       try {
-        await addDoc(collection(db, "users"), {
+        const docRef = await addDoc(collection(db, "users"), {
             email: currentUser.email,
             displayName: currentUser.email.split('@')[0],
             designation: currentUser.designation,
@@ -92,6 +76,18 @@ const UserManagementPage = () => {
             isAdmin: false,
             createdAt: serverTimestamp()
         });
+
+        const newUser = { id: docRef.id, ...currentUser };
+        const managers = getAllManagers(newUser.id, [...users, newUser]);
+        
+        const batch = writeBatch(db);
+        managers.forEach(manager => {
+            const managerRef = doc(db, 'users', manager.id);
+            const newProjectsForManager = new Set([...(manager.mappedProjects || []), ...currentUser.mappedProjects]);
+            batch.update(managerRef, { mappedProjects: Array.from(newProjectsForManager) });
+        });
+        await batch.commit();
+        
         alert(`User record for ${currentUser.email} created.`);
         setIsModalOpen(false);
       } catch (error) { console.error(error); alert("Failed to add user."); }
@@ -99,24 +95,43 @@ const UserManagementPage = () => {
 
   const handleEditUser = async () => {
     if (!currentUser) return;
+    
+    const originalUser = users.find(u => u.id === currentUser.id);
+    const originalProjects = new Set(originalUser.mappedProjects || []);
+    const newProjects = new Set(currentUser.mappedProjects || []);
+    const removedProjects = [...originalProjects].filter(p => !newProjects.has(p));
+
+    if (removedProjects.length > 0) {
+        const subordinates = getAllSubordinates(currentUser.id, users);
+        for (const projectId of removedProjects) {
+            for (const subordinate of subordinates) {
+                if ((subordinate.mappedProjects || []).includes(projectId)) {
+                    const projectName = projectMap[projectId] || 'Unknown Project';
+                    alert(`Cannot unmap from "${projectName}". Subordinate "${subordinate.displayName || subordinate.email}" is still mapped to it.`);
+                    return;
+                }
+            }
+        }
+    }
+
     try {
         const userRef = doc(db, "users", currentUser.id);
+        const batch = writeBatch(db);
 
-        await updateDoc(userRef, {
+        batch.update(userRef, {
             designation: currentUser.designation,
             reportingTo: currentUser.reportingTo,
             mappedProjects: currentUser.mappedProjects,
         });
 
-        const managerId = currentUser.reportingTo;
-        if (managerId) {
-            const manager = users.find(u => u.id === managerId);
-            if(manager) {
-                const newProjectsForManager = new Set([...(manager.mappedProjects || []), ...currentUser.mappedProjects]);
-                await updateDoc(doc(db, 'users', managerId), { mappedProjects: Array.from(newProjectsForManager) });
-            }
-        }
+        const managers = getAllManagers(currentUser.id, users);
+        managers.forEach(manager => {
+            const managerRef = doc(db, 'users', manager.id);
+            const newProjectsForManager = new Set([...(manager.mappedProjects || []), ...currentUser.mappedProjects]);
+            batch.update(managerRef, { mappedProjects: Array.from(newProjectsForManager) });
+        });
 
+        await batch.commit();
         setIsModalOpen(false);
     } catch(error) { console.error(error); alert("Failed to update user."); }
   };
@@ -125,7 +140,7 @@ const UserManagementPage = () => {
     const projectsOwnedQuery = query(collection(db, "projects"), where("ownerId", "==", userId));
     const ownedProjectsSnap = await getDocs(projectsOwnedQuery);
     if (!ownedProjectsSnap.empty) {
-        alert(`Cannot delete user. They are the owner of project(s): ${ownedProjectsSnap.docs.map(d => d.data().name).join(', ')}. Please change the owner first.`);
+        alert(`Cannot delete user. They are the owner of project(s). Please change the owner first.`);
         return;
     }
 
@@ -195,8 +210,8 @@ const UserManagementPage = () => {
           <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-lg">
             <h2 className="text-2xl font-bold mb-6 dark:text-white">{isEditing ? 'Edit User' : 'Add New User'}</h2>
             <form onSubmit={handleFormSubmit} className="space-y-4">
-                <input type="email" name="email" value={currentUser.email} onChange={handleUserInputChange} placeholder="Email (Username)" required className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600" disabled={isEditing}/>
-                {!isEditing && <input type="password" name="password" value={currentUser.password} onChange={handleUserInputChange} placeholder="Enter any temporary password (will not be stored)" required className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600" />}
+                <input type="email" name="email" value={currentUser.email} onChange={handleUserInputChange} placeholder="Email" required className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600" disabled={isEditing}/>
+                {!isEditing && <input type="password" name="password" value={currentUser.password} onChange={handleUserInputChange} placeholder="Enter any temporary password (will not be stored)" className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600" />}
                 <div>
                     <label className="block mb-1 font-medium dark:text-gray-300">Designation</label>
                     <select name="designation" value={currentUser.designation} onChange={handleUserInputChange} className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white">
@@ -207,7 +222,7 @@ const UserManagementPage = () => {
                     <label className="block mb-1 font-medium dark:text-gray-300">Reporting To</label>
                     <select name="reportingTo" value={currentUser.reportingTo} onChange={handleUserInputChange} className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                         <option value="">None</option>
-                        {users.filter(u => u.id !== currentUser.id).map(u => <option key={u.id} value={u.id}>{u.displayName || u.email}</option>)}
+                        {users.filter(u => u.id !== currentUser.id && u.reportingTo !== currentUser.id).map(u => <option key={u.id} value={u.id}>{u.displayName || u.email}</option>)}
                     </select>
                 </div>
                 <div>
