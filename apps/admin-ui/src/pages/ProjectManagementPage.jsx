@@ -12,6 +12,10 @@ const ProjectManagementPage = () => {
   const [currentProject, setCurrentProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [countryOptions, setCountryOptions] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  
   const userMap = users.reduce((acc, user) => ({ ...acc, [user.id]: user.displayName || user.email }), {});
 
   useEffect(() => {
@@ -67,11 +71,20 @@ const ProjectManagementPage = () => {
     }
   };
 
+  const filteredProjects = projects.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  const paginatedProjects = filteredProjects.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
   return (
     <>
       <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-semibold text-gray-800 dark:text-white">Projects</h2>
+          <input
+            type="text"
+            placeholder="Search projects by name..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-1/3 p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+          />
           <button onClick={openCreateModal} className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex items-center">
              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
             Create Project
@@ -89,7 +102,7 @@ const ProjectManagementPage = () => {
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {loading && <tr><td colSpan="4" className="text-center py-4 dark:text-gray-300">Loading projects...</td></tr>}
-              {!loading && projects.map(project => (
+              {!loading && paginatedProjects.map(project => (
                 <tr key={project.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{project.name}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500 dark:text-gray-400">{project.projectCode || 'N/A'}</td>
@@ -102,6 +115,11 @@ const ProjectManagementPage = () => {
               ))}
             </tbody>
           </table>
+        </div>
+        <div className="flex justify-between items-center mt-4">
+            <button onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1} className="px-4 py-2 bg-gray-300 rounded-md disabled:opacity-50">Previous</button>
+            <span>Page {currentPage} of {Math.ceil(filteredProjects.length / itemsPerPage)}</span>
+            <button onClick={() => setCurrentPage(p => Math.min(p + 1, Math.ceil(filteredProjects.length / itemsPerPage)))} disabled={currentPage * itemsPerPage >= filteredProjects.length} className="px-4 py-2 bg-gray-300 rounded-md disabled:opacity-50">Next</button>
         </div>
       </div>
       
