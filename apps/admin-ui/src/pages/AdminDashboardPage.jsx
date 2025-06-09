@@ -2,9 +2,10 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
 import { collection, doc, onSnapshot } from 'firebase/firestore';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
-import * as XLSX from 'xlsx';
+// Removed direct imports as they cause build errors with CDNs
+// import jsPDF from 'jspdf';
+// import 'jspdf-autotable';
+// import * as XLSX from 'xlsx';
 
 // --- Reusable Component for Stat Tiles ---
 const StatTile = ({ title, value, icon, onClick }) => (
@@ -106,10 +107,11 @@ const AdminDashboardPage = () => {
             alert("No data available to download.");
             return;
         }
-        const worksheet = XLSX.utils.json_to_sheet(data);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
-        XLSX.writeFile(workbook, `${filename}.xlsx`);
+        // Access xlsx from the window object
+        const worksheet = window.XLSX.utils.json_to_sheet(data);
+        const workbook = window.XLSX.utils.book_new();
+        window.XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
+        window.XLSX.writeFile(workbook, `${filename}.xlsx`);
     };
 
     const downloadAsPdf = (data, title, filename) => {
@@ -117,7 +119,8 @@ const AdminDashboardPage = () => {
             alert("No data available to download.");
             return;
         }
-        const doc = new jsPDF();
+        // Access jsPDF from the window object
+        const doc = new window.jspdf.jsPDF();
         doc.text(title, 14, 16);
         doc.autoTable({
             startY: 22,
