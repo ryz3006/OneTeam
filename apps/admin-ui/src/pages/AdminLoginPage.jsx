@@ -5,42 +5,78 @@ import { auth } from '../firebase';
 
 const AdminLoginPage = () => {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('admin'); // Default for convenience
+  const [email, setEmail] = useState('admin'); // Default email as per requirements
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
+
     try {
-      // Note: In a real app, you would also check if the logged-in user has an 'isAdmin' flag in Firestore.
+      // NOTE: For production, you should add a Firestore rule check to ensure
+      // only users with an `isAdmin: true` flag can access admin routes.
       await signInWithEmailAndPassword(auth, email, password);
-      navigate('/admin/dashboard');
+      navigate('/dashboard');
     } catch (err) {
-      setError('Failed to log in. Check credentials.');
+      setError('Invalid credentials. Please try again.');
       console.error("Admin login error:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div>
-      <h1>Admin Login</h1>
-      <form onSubmit={handleLogin}>
-        <input 
-          type="email" 
-          value={email} 
-          onChange={(e) => setEmail(e.target.value)} 
-          placeholder="Email" 
-        />
-        <input 
-          type="password" 
-          value={password} 
-          onChange={(e) => setPassword(e.target.value)} 
-          placeholder="Password"
-        />
-        <button type="submit">Login</button>
-      </form>
-      {error && <p style={{color: 'red'}}>{error}</p>}
+    <div style={{ fontFamily: 'sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', backgroundColor: '#343a40' }}>
+      <div style={{ backgroundColor: 'white', padding: '40px', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', textAlign: 'center', maxWidth: '400px', width: '100%' }}>
+        
+        <h1 style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#1c1e21', margin: '0 0 10px 0' }}>
+          OneTeam Admin
+        </h1>
+        
+        <p style={{ fontSize: '1.2rem', color: '#606770', marginBottom: '30px' }}>
+          Administrator Control Panel
+        </p>
+
+        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+          <input 
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Username or Email"
+            style={{ padding: '12px', fontSize: '1rem', border: '1px solid #ccc', borderRadius: '6px' }}
+          />
+          <input 
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Password"
+            style={{ padding: '12px', fontSize: '1rem', border: '1px solid #ccc', borderRadius: '6px' }}
+          />
+          {error && <p style={{ color: 'red', margin: '0' }}>{error}</p>}
+          <button 
+            type="submit"
+            disabled={loading}
+            style={{
+              backgroundColor: '#007bff',
+              color: 'white',
+              fontWeight: 'bold',
+              border: 'none',
+              borderRadius: '6px',
+              padding: '12px 24px',
+              fontSize: '1rem',
+              cursor: 'pointer',
+              transition: 'background-color 0.3s',
+              opacity: loading ? 0.7 : 1,
+            }}
+          >
+            {loading ? 'Logging in...' : 'Login'}
+          </button>
+        </form>
+
+      </div>
     </div>
   );
 };
