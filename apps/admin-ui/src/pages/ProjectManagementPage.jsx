@@ -6,29 +6,20 @@ const amcMsoOptions = ["Not Applicable", "AMC", "MSO"];
 
 const ProjectManagementPage = () => {
   const [projects, setProjects] = useState([]);
+  const [users, setUsers] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentProject, setCurrentProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [countryOptions, setCountryOptions] = useState([]);
+  const userMap = users.reduce((acc, user) => ({ ...acc, [user.id]: user.displayName || user.email }), {});
 
   useEffect(() => {
-    const projUnsubscribe = onSnapshot(collection(db, 'projects'), (snapshot) => {
-      const projectsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setProjects(projectsData);
-      setLoading(false);
-    });
-    
-    const settingsUnsubscribe = onSnapshot(doc(db, 'settings', 'countries'), (doc) => {
-        if (doc.exists()) {
-            setCountryOptions(doc.data().list || []);
-        }
-    });
-
-    return () => {
-        projUnsubscribe();
-        settingsUnsubscribe();
-    };
+    const projUnsub = onSnapshot(collection(db, 'projects'), snap => setProjects(snap.docs.map(d => ({id: d.id, ...d.data()}))));
+    const userUnsub = onSnapshot(collection(db, 'users'), snap => setUsers(snap.docs.map(d => ({id: d.id, ...d.data()}))));
+    const countryUnsub = onSnapshot(doc(db, 'settings', 'countries'), d => setCountryOptions(d.exists() ? d.data().list : []));
+    setLoading(false);
+    return () => { projUnsub(); userUnsub(); countryUnsub(); };
   }, []);
 
   const handleInputChange = (e) => {
@@ -39,7 +30,7 @@ const ProjectManagementPage = () => {
   
   const openCreateModal = () => {
     setIsEditing(false);
-    setCurrentProject({ name: '', crmId: '', amcMso: amcMsoOptions[0], contractDetails: '', customerName: '', countryCode: countryOptions.length > 0 ? countryOptions[0].code : '', product: '' });
+    setCurrentProject({ name: '', crmId: '', amcMso: amcMsoOptions[0], contractDetails: '', customerName: '', countryCode: countryOptions.length > 0 ? countryOptions[0].code : '', product: '', ownerId: '' });
     setIsModalOpen(true);
   };
   
@@ -51,27 +42,22 @@ const ProjectManagementPage = () => {
 
   const handleFormSubmit = async (e) => {
     e.preventDefault();
-    if (!currentProject.name || !auth.currentUser) return;
+    if (!currentProject.name || !currentProject.ownerId) return alert("Project Name and Owner are required.");
     
     let projectData = { ...currentProject };
 
     try {
         if (isEditing) {
             const projectRef = doc(db, 'projects', currentProject.id);
-            const { id, ...dataToUpdate } = projectData;
-            await updateDoc(projectRef, dataToUpdate);
+            await updateDoc(projectRef, projectData);
         } else {
             const randomId = Math.floor(100000 + Math.random() * 900000);
-            const projectCode = `${projectData.customerName}_${projectData.countryCode}_${projectData.product}_${randomId}`;
-            projectData.projectCode = projectCode;
-
+            projectData.projectCode = `${projectData.customerName}_${projectData.countryCode}_${projectData.product}_${randomId}`;
             await addDoc(collection(db, 'projects'), { ...projectData, createdBy: auth.currentUser.uid, createdAt: serverTimestamp() });
         }
         setIsModalOpen(false);
-        setCurrentProject(null);
     } catch (error) {
       console.error("Error saving project: ", error);
-      alert("Error saving project: " + error.message);
     }
   };
   
@@ -95,9 +81,9 @@ const ProjectManagementPage = () => {
           <table className="min-w-full bg-white dark:bg-gray-800">
             <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Project Code</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Project Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">CRMID</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Project Code</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Owner</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
@@ -105,9 +91,9 @@ const ProjectManagementPage = () => {
               {loading && <tr><td colSpan="4" className="text-center py-4 dark:text-gray-300">Loading projects...</td></tr>}
               {!loading && projects.map(project => (
                 <tr key={project.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500 dark:text-gray-400">{project.projectCode || 'N/A'}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{project.name}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{project.crmId || 'N/A'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500 dark:text-gray-400">{project.projectCode || 'N/A'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{userMap[project.ownerId] || 'Unassigned'}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
                     <button onClick={() => openEditModal(project)} className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200 font-medium">Edit</button>
                     <button onClick={() => handleDeleteProject(project.id)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200 font-medium">Delete</button>
@@ -119,28 +105,34 @@ const ProjectManagementPage = () => {
         </div>
       </div>
       
-      {/* --- Form Modal --- */}
       {isModalOpen && currentProject && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4">
           <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-2xl">
             <h2 className="text-2xl font-bold mb-6 dark:text-white">{isEditing ? 'Edit Project' : 'Create New Project'}</h2>
             <form onSubmit={handleFormSubmit}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input type="text" name="name" value={currentProject.name || ''} onChange={handleInputChange} placeholder="Project Name" required className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"/>
-                <input type="text" name="crmId" value={currentProject.crmId || ''} onChange={handleInputChange} placeholder="CRMID (Optional)" className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"/>
-                <input type="text" name="customerName" value={currentProject.customerName || ''} onChange={handleInputChange} placeholder="Customer Name (no spaces)" required className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"/>
-                <input type="text" name="product" value={currentProject.product || ''} onChange={handleInputChange} placeholder="Product (no spaces)" required className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"/>
-                <select name="countryCode" value={currentProject.countryCode} onChange={handleInputChange} className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                <input type="text" name="name" value={currentProject.name || ''} onChange={handleInputChange} placeholder="Project Name" required className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"/>
+                <input type="text" name="crmId" value={currentProject.crmId || ''} onChange={handleInputChange} placeholder="CRMID (Optional)" className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"/>
+                <input type="text" name="customerName" value={currentProject.customerName || ''} onChange={handleInputChange} placeholder="Customer Name (no spaces)" required className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"/>
+                <input type="text" name="product" value={currentProject.product || ''} onChange={handleInputChange} placeholder="Product (no spaces)" required className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"/>
+                <select name="countryCode" value={currentProject.countryCode} onChange={handleInputChange} className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                     {countryOptions.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
                 </select>
-                <select name="amcMso" value={currentProject.amcMso} onChange={handleInputChange} className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                <select name="amcMso" value={currentProject.amcMso} onChange={handleInputChange} className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                     {amcMsoOptions.map(o => <option key={o} value={o}>{o}</option>)}
                 </select>
-                <textarea name="contractDetails" value={currentProject.contractDetails || ''} onChange={handleInputChange} placeholder="Contract Details" required className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white h-24 md:col-span-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"></textarea>
+                <div>
+                    <label className="block mb-1 font-medium dark:text-gray-300">Project Owner</label>
+                    <select name="ownerId" value={currentProject.ownerId} onChange={handleInputChange} required className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        <option value="">Select an Owner</option>
+                        {users.map(u => <option key={u.id} value={u.id}>{u.displayName || u.email}</option>)}
+                    </select>
+                </div>
+                <textarea name="contractDetails" value={currentProject.contractDetails || ''} onChange={handleInputChange} placeholder="Contract Details" required className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white h-24 md:col-span-2"></textarea>
               </div>
               <div className="flex justify-end mt-6 space-x-4">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded bg-gray-200 dark:bg-gray-600 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-500 font-semibold">Cancel</button>
-                <button type="submit" className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 font-semibold">{isEditing ? 'Save Changes' : 'Create Project'}</button>
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded bg-gray-200 dark:bg-gray-600">Cancel</button>
+                <button type="submit" className="px-4 py-2 rounded bg-blue-600 text-white">{isEditing ? 'Save Changes' : 'Create Project'}</button>
               </div>
             </form>
           </div>
