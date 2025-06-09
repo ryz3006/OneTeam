@@ -1,10 +1,57 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { db } from '../firebase';
-import { collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, serverTimestamp, where, getDocs, writeBatch } from 'firebase/firestore';
+import { db, auth } from '../firebase';
+import { collection, query, where, getDocs, onSnapshot, addDoc, doc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 
+// --- Reusable MultiSelect Dropdown Component ---
 const MultiSelectDropdown = ({ options, selected, onSelectionChange, placeholder }) => {
-    // ... (component code remains the same)
+    const [isOpen, setIsOpen] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+
+    const filteredOptions = options.filter(option => 
+        option.label.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const handleToggleOption = (optionValue) => {
+        const newSelection = selected.includes(optionValue)
+            ? selected.filter(item => item !== optionValue)
+            : [...selected, optionValue];
+        onSelectionChange(newSelection);
+    };
+    
+    const selectedLabels = options.filter(o => selected.includes(o.value)).map(o => o.label).join(', ');
+
+    return (
+        <div className="relative">
+            <button type="button" onClick={() => setIsOpen(!isOpen)} className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white text-left flex justify-between items-center">
+                <span className="truncate pr-2">{selectedLabels || placeholder}</span>
+                <span>&#9662;</span>
+            </button>
+            {isOpen && (
+                <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-700 rounded-md shadow-lg max-h-60 overflow-auto">
+                    <input 
+                        type="text"
+                        placeholder="Search..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full p-2 border-b dark:bg-gray-600 dark:border-gray-500"
+                    />
+                    {filteredOptions.map(option => (
+                        <div key={option.value} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer flex items-center">
+                           <input 
+                                type="checkbox"
+                                checked={selected.includes(option.value)}
+                                onChange={() => handleToggleOption(option.value)}
+                                className="mr-2"
+                           />
+                           {option.label}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
 };
+
 
 const UserManagementPage = () => {
   const [users, setUsers] = useState([]);
@@ -54,7 +101,6 @@ const UserManagementPage = () => {
     if (!currentUser) return;
     try {
         const userRef = doc(db, "users", currentUser.id);
-        const oldUserData = users.find(u => u.id === currentUser.id);
 
         await updateDoc(userRef, {
             designation: currentUser.designation,
@@ -62,7 +108,6 @@ const UserManagementPage = () => {
             mappedProjects: currentUser.mappedProjects,
         });
 
-        // Auto-assign projects to manager
         const managerId = currentUser.reportingTo;
         if (managerId) {
             const manager = users.find(u => u.id === managerId);
@@ -77,7 +122,6 @@ const UserManagementPage = () => {
   };
 
   const handleDeleteUser = async (userId, userDisplayName) => {
-    // 1. Check if user is an owner of any project
     const projectsOwnedQuery = query(collection(db, "projects"), where("ownerId", "==", userId));
     const ownedProjectsSnap = await getDocs(projectsOwnedQuery);
     if (!ownedProjectsSnap.empty) {
@@ -85,7 +129,6 @@ const UserManagementPage = () => {
         return;
     }
 
-    // 2. Check if any other user reports to this user
     const subordinatesQuery = query(collection(db, "users"), where("reportingTo", "==", userId));
     const subordinatesSnap = await getDocs(subordinatesQuery);
     if(!subordinatesSnap.empty) {
@@ -110,10 +153,6 @@ const UserManagementPage = () => {
     setCurrentUser(prev => ({ ...prev, mappedProjects: selection }));
   }
 
-  const renderModal = () => {
-    // ... (modal rendering logic remains the same, but without the password field)
-  };
-
   return (
     <>
       <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
@@ -123,7 +162,14 @@ const UserManagementPage = () => {
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full bg-white dark:bg-gray-800">
-            {/* ... table headers ... */}
+             <thead className="bg-gray-50 dark:bg-gray-700">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Designation</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Mapped Projects</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {loading && <tr><td colSpan="4" className="text-center py-4 dark:text-gray-300">Loading users...</td></tr>}
               {!loading && users.map(user => (
@@ -134,8 +180,8 @@ const UserManagementPage = () => {
                     {(user.mappedProjects || []).map(pId => projectMap[pId]).join(', ')}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
-                    <button onClick={() => openEditModal(user)} className="text-indigo-600 hover:text-indigo-900">Edit</button>
-                    <button onClick={() => handleDeleteUser(user.id, user.displayName || user.email)} className="text-red-600 hover:text-red-900">Delete</button>
+                    <button onClick={() => openEditModal(user)} className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200">Edit</button>
+                    <button onClick={() => handleDeleteUser(user.id, user.displayName || user.email)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200">Delete</button>
                   </td>
                 </tr>
               ))}
@@ -143,7 +189,44 @@ const UserManagementPage = () => {
           </table>
         </div>
       </div>
-      {/* ... renderModal() call ... */}
+      
+      {isModalOpen && currentUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4">
+          <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-lg">
+            <h2 className="text-2xl font-bold mb-6 dark:text-white">{isEditing ? 'Edit User' : 'Add New User'}</h2>
+            <form onSubmit={handleFormSubmit} className="space-y-4">
+                <input type="email" name="email" value={currentUser.email} onChange={handleUserInputChange} placeholder="Email (Username)" required className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600" disabled={isEditing}/>
+                {!isEditing && <input type="password" name="password" value={currentUser.password} onChange={handleUserInputChange} placeholder="Enter any temporary password (will not be stored)" required className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600" />}
+                <div>
+                    <label className="block mb-1 font-medium dark:text-gray-300">Designation</label>
+                    <select name="designation" value={currentUser.designation} onChange={handleUserInputChange} className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        {designations.map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                </div>
+                 <div>
+                    <label className="block mb-1 font-medium dark:text-gray-300">Reporting To</label>
+                    <select name="reportingTo" value={currentUser.reportingTo} onChange={handleUserInputChange} className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        <option value="">None</option>
+                        {users.filter(u => u.id !== currentUser.id).map(u => <option key={u.id} value={u.id}>{u.displayName || u.email}</option>)}
+                    </select>
+                </div>
+                <div>
+                    <label className="block mb-1 font-medium dark:text-gray-300">Mapped Projects</label>
+                    <MultiSelectDropdown 
+                        options={projectOptions}
+                        selected={currentUser.mappedProjects}
+                        onSelectionChange={handleProjectSelectionChange}
+                        placeholder="Select projects..."
+                    />
+                </div>
+              <div className="flex justify-end mt-6 space-x-4">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded bg-gray-200 dark:bg-gray-600 dark:text-gray-200">Cancel</button>
+                <button type="submit" className="px-4 py-2 rounded bg-blue-600 text-white">{isEditing ? 'Save Changes' : 'Add User'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   );
 };
