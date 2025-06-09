@@ -2,15 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 
-const DESIGNATIONS = [
-  'Head - Delivery & Support', 'AVP - Support & Operations', 'Senior Manager - Operations',
-  'Manager - Operations', 'Associate Manager - Operations', 'Lead Engineer - Operations',
-  'Senior Operations Engineer', 'Operations Engineer', 'Lead - L1 Operations',
-  'Senior Engineer - L1 Operations', 'L1 Operations Engineer'
-];
-
 const UserManagementPage = () => {
   const [users, setUsers] = useState([]);
+  const [designations, setDesignations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -18,18 +12,28 @@ const UserManagementPage = () => {
   
   const defaultNewUser = {
     email: '',
-    password: '', // This will only be used for the form, not saved.
-    designation: DESIGNATIONS[0],
+    password: '',
+    designation: designations.length > 0 ? designations[0] : '',
     reportingTo: ''
   };
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, "users"), (snapshot) => {
+    const usersUnsubscribe = onSnapshot(collection(db, "users"), (snapshot) => {
       const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setUsers(usersData);
       setLoading(false);
     });
-    return unsubscribe;
+    
+    const designationsUnsubscribe = onSnapshot(doc(db, 'settings', 'designations'), (doc) => {
+        if (doc.exists()) {
+            setDesignations(doc.data().list || []);
+        }
+    });
+
+    return () => {
+        usersUnsubscribe();
+        designationsUnsubscribe();
+    };
   }, []);
 
   const openAddUserModal = () => {
@@ -60,10 +64,9 @@ const UserManagementPage = () => {
       }
       
       try {
-        // Create user record in Firestore. We do not touch Firebase Auth.
         await addDoc(collection(db, "users"), {
             email: currentUser.email,
-            displayName: currentUser.email.split('@')[0], // Create a default display name
+            displayName: currentUser.email.split('@')[0],
             designation: currentUser.designation,
             reportingTo: currentUser.reportingTo,
             isAdmin: false,
@@ -73,7 +76,6 @@ const UserManagementPage = () => {
         alert(`User record for ${currentUser.email} created successfully.`);
         setIsModalOpen(false);
         setCurrentUser(null);
-
       } catch (error) {
           console.error("Error adding user document: ", error);
           alert("Failed to add user document.");
@@ -127,7 +129,7 @@ const UserManagementPage = () => {
                 <div>
                     <label className="block mb-1 font-medium dark:text-gray-300">Designation</label>
                     <select name="designation" value={currentUser.designation} onChange={handleUserInputChange} className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                        {DESIGNATIONS.map(d => <option key={d} value={d}>{d}</option>)}
+                        {designations.map(d => <option key={d} value={d}>{d}</option>)}
                     </select>
                 </div>
                  <div>
