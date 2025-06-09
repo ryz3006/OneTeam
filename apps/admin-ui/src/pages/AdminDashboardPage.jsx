@@ -1,7 +1,7 @@
 import React from 'react';
 import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 const AdminDashboardPage = () => {
   const navigate = useNavigate();
@@ -27,7 +27,28 @@ const AdminDashboardPage = () => {
           </button>
         </div>
       </header>
-      <main style={{ padding: '30px' }}><h2 style={{ fontSize: '2rem', marginBottom: '30px' }}>Management Dashboard</h2></main>
+      <main style={{ padding: '30px' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          <h2 style={{ fontSize: '2rem', marginBottom: '30px' }}>Management Dashboard</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '30px' }}>
+            <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+              <h3 style={{ marginTop: 0, borderBottom: '1px solid #eee', paddingBottom: '10px' }}>Projects</h3>
+              <p>Create, edit, and assign users to projects.</p>
+              <Link to="/projects" style={{ textDecoration: 'none', backgroundColor: '#007bff', color: 'white', padding: '10px 15px', borderRadius: '4px', display: 'inline-block' }}>Manage Projects</Link>
+            </div>
+            <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+              <h3 style={{ marginTop: 0, borderBottom: '1px solid #eee', paddingBottom: '10px' }}>Users</h3>
+              <p>Invite new users and manage designations.</p>
+              <Link to="/users" style={{ textDecoration: 'none', backgroundColor: '#28a745', color: 'white', padding: '10px 15px', borderRadius: '4px', display: 'inline-block' }}>Manage Users</Link>
+            </div>
+            <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+              <h3 style={{ marginTop: 0, borderBottom: '1px solid #eee', paddingBottom: '10px' }}>Work Reports</h3>
+              <p>View work reports submitted by all users.</p>
+              <button style={{ backgroundColor: '#ffc107', color: 'black', border: 'none', padding: '10px 15px', borderRadius: '4px', cursor: 'pointer' }}>View Reports</button>
+            </div>
+          </div>
+        </div>
+      </main>
     </div>
   );
 };
