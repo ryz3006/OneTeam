@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { db } from '../firebase';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { collection, doc, onSnapshot } from 'firebase/firestore';
 
 // --- Reusable Components ---
 const DashboardCard = ({ title, description, link, linkText, icon }) => (
@@ -37,12 +37,14 @@ const AdminDashboardPage = () => {
     const [activeTab, setActiveTab] = useState('overview');
     const [users, setUsers] = useState([]);
     const [projects, setProjects] = useState([]);
+    const [designations, setDesignations] = useState([]);
     const [selectedProject, setSelectedProject] = useState('');
 
     useEffect(() => {
         const unsubUsers = onSnapshot(collection(db, "users"), snap => setUsers(snap.docs.map(d => ({id: d.id, ...d.data()}))));
         const unsubProjects = onSnapshot(collection(db, "projects"), snap => setProjects(snap.docs.map(d => ({id: d.id, ...d.data()}))));
-        return () => { unsubUsers(); unsubProjects(); };
+        const unsubDesignations = onSnapshot(doc(db, 'settings', 'designations'), d => setDesignations(d.exists() ? d.data().list : []));
+        return () => { unsubUsers(); unsubProjects(); unsubDesignations(); };
     }, []);
 
     const userHierarchy = useMemo(() => {
@@ -53,9 +55,20 @@ const AdminDashboardPage = () => {
     const escalationMatrix = useMemo(() => {
         if (!selectedProject) return [];
         const projectUsers = users.filter(u => (u.mappedProjects || []).includes(selectedProject));
-        // Simple sort by designation - a more complex sort would use a predefined order
-        return projectUsers.sort((a,b) => (a.designation || "").localeCompare(b.designation || ""));
-    }, [selectedProject, users]);
+        
+        // --- New Sorting Logic ---
+        const getSortOrder = (designation) => {
+            // Reversing the designation array makes lower index higher priority (L1)
+            const order = [...designations].reverse().indexOf(designation);
+            return order === -1 ? Infinity : order; // Place unknown designations at the end
+        };
+
+        return projectUsers.sort((a, b) => {
+            const orderA = getSortOrder(a.designation);
+            const orderB = getSortOrder(b.designation);
+            return orderA - orderB;
+        });
+    }, [selectedProject, users, designations]);
 
     const renderContent = () => {
         switch (activeTab) {
