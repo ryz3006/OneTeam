@@ -30,7 +30,7 @@ const ProjectManagementPage = () => {
   
   const openCreateModal = () => {
     setIsEditing(false);
-    setCurrentProject({ name: '', crmId: '', amcMso: amcMsoOptions[0], contractDetails: '', customerName: '', countryCode: countryOptions.length > 0 ? countryOptions[0].code : '', product: '', ownerId: '' });
+    setCurrentProject({ name: '', crmId: '', amcMso: amcMsoOptions[0], contractDetails: '', customerName: '', countryCode: countryOptions.length > 0 ? countryOptions[0].code : '', product: '', ownerId: '', commonContactEmail: '', commonContactNumber: '' });
     setIsModalOpen(true);
   };
   
@@ -128,6 +128,9 @@ const ProjectManagementPage = () => {
                         {users.map(u => <option key={u.id} value={u.id}>{u.displayName || u.email}</option>)}
                     </select>
                 </div>
+                <div /> 
+                <input type="email" name="commonContactEmail" value={currentProject.commonContactEmail || ''} onChange={handleInputChange} placeholder="Common L1 Email (Optional)" className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"/>
+                <input type="text" name="commonContactNumber" value={currentProject.commonContactNumber || ''} onChange={handleInputChange} placeholder="Common L1 Contact Number (Optional)" className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"/>
                 <textarea name="contractDetails" value={currentProject.contractDetails || ''} onChange={handleInputChange} placeholder="Contract Details" required className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white h-24 md:col-span-2"></textarea>
               </div>
               <div className="flex justify-end mt-6 space-x-4">
