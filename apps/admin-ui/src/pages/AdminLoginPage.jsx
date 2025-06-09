@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../firebase';
+import LogoOnly from '../images/Logo_only.png'; // Import the logo
 
 const AdminLoginPage = () => {
   const navigate = useNavigate();
@@ -28,6 +29,7 @@ const AdminLoginPage = () => {
     <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900">
       <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md dark:bg-gray-800">
         <div className="text-center">
+            <img src={LogoOnly} alt="OneTeam Logo" className="w-20 h-20 mx-auto mb-4" />
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">OneTeam Admin</h1>
           <p className="text-gray-500 dark:text-gray-400">Administrator Control Panel</p>
         </div>
