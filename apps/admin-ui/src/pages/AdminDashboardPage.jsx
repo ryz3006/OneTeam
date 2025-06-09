@@ -2,9 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
 import { collection, doc, onSnapshot } from 'firebase/firestore';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
-import * as XLSX from 'xlsx';
+
+// Removed direct imports for jspdf and xlsx as they are loaded from CDN in index.html
 
 // --- Reusable Component for Stat Tiles ---
 const StatTile = ({ title, value, icon, onClick }) => (
@@ -94,7 +93,7 @@ const AdminDashboardPage = () => {
 
         if (sortedUsers.length > 0) {
             let levelCounter = matrix.length + 1;
-            let lastDesignation = sortedUsers[0].designation;
+            let lastDesignation = sortedUsers[0]?.designation;
 
             sortedUsers.forEach((user, index) => {
                 if (index > 0 && user.designation !== lastDesignation) {
