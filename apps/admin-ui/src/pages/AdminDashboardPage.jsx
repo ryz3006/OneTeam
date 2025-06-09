@@ -3,9 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
 import { collection, doc, onSnapshot } from 'firebase/firestore';
 
-// Removed direct imports for jspdf and xlsx as they are loaded from CDN in index.html
-
-// --- Reusable Component for Stat Tiles ---
 const StatTile = ({ title, value, icon, onClick }) => (
     <div onClick={onClick} className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer">
       <div className="flex items-center space-x-4">
@@ -18,8 +15,6 @@ const StatTile = ({ title, value, icon, onClick }) => (
     </div>
 );
 
-
-// --- Reusable Component for Displaying User Hierarchy Nodes ---
 const UserNode = ({ user, allUsers, level }) => {
     const subordinates = allUsers.filter(u => u.reportingTo === user.id);
     return (
@@ -37,7 +32,6 @@ const UserNode = ({ user, allUsers, level }) => {
     );
 };
 
-// --- Main Dashboard Page Component ---
 const AdminDashboardPage = () => {
     const [activeTab, setActiveTab] = useState('overview');
     const [users, setUsers] = useState([]);
@@ -90,11 +84,9 @@ const AdminDashboardPage = () => {
                 'Contact Number': selectedProject.commonContactNumber || 'N/A'
             });
         }
-
         if (sortedUsers.length > 0) {
             let levelCounter = matrix.length + 1;
             let lastDesignation = sortedUsers[0]?.designation;
-
             sortedUsers.forEach((user, index) => {
                 if (index > 0 && user.designation !== lastDesignation) {
                     levelCounter++;
@@ -109,29 +101,21 @@ const AdminDashboardPage = () => {
                 lastDesignation = user.designation;
             });
         }
-        
         return matrix;
-
     }, [selectedProjectId, users, designations, selectedProject]);
 
-    const downloadAsExcel = (data, filename) => {
-        if (data.length === 0) {
-            alert("No data available to download.");
-            return;
-        }
-        // Access xlsx from the window object
-        const worksheet = window.XLSX.utils.json_to_sheet(data);
+    const downloadAsExcel = (data, filename, title) => {
+        if (data.length === 0) return alert("No data to download.");
+        const timestamp = `Downloaded from OneTeam dashboard at ${new Date().toLocaleString()}`;
+        const finalData = [[title], [timestamp], []].concat([Object.keys(data[0])]).concat(data.map(Object.values));
+        const worksheet = window.XLSX.utils.aoa_to_sheet(finalData);
         const workbook = window.XLSX.utils.book_new();
-        window.XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
-        window.XLSX.writeFile(workbook, `${filename}.xlsx`);
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
+        XLSX.writeFile(workbook, `${filename}.xlsx`);
     };
 
     const downloadAsPdf = (data, title, filename) => {
-        if (data.length === 0) {
-            alert("No data available to download.");
-            return;
-        }
-        // Access jsPDF from the window object
+        if (data.length === 0) return alert("No data to download.");
         const doc = new window.jspdf.jsPDF();
         doc.text(title, 14, 16);
         doc.autoTable({
@@ -139,6 +123,8 @@ const AdminDashboardPage = () => {
             head: [Object.keys(data[0])],
             body: data.map(Object.values),
         });
+        doc.setFontSize(8);
+        doc.text(`Downloaded from OneTeam dashboard at ${new Date().toLocaleString()}`, 14, doc.internal.pageSize.height - 10);
         doc.save(`${filename}.pdf`);
     };
 
@@ -148,7 +134,7 @@ const AdminDashboardPage = () => {
                 return (
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
                         <div className="flex justify-end gap-2 mb-4">
-                            <button onClick={() => downloadAsExcel(hierarchyData, 'user-hierarchy')} className="px-3 py-1 bg-green-600 text-white rounded-md text-sm">Download Excel</button>
+                            <button onClick={() => downloadAsExcel(hierarchyData, 'user-hierarchy', 'User Hierarchy')} className="px-3 py-1 bg-green-600 text-white rounded-md text-sm">Download Excel</button>
                             <button onClick={() => downloadAsPdf(hierarchyData, 'User Hierarchy', 'user-hierarchy')} className="px-3 py-1 bg-red-600 text-white rounded-md text-sm">Download PDF</button>
                         </div>
                         {users.filter(u => !u.reportingTo).map(user => <UserNode key={user.id} user={user} allUsers={users} level={0} />)}
@@ -167,8 +153,8 @@ const AdminDashboardPage = () => {
                             </div>
                             {selectedProjectId && (
                                 <div className="flex gap-2">
-                                    <button onClick={() => downloadAsExcel(escalationMatrix, 'escalation-matrix')} className="px-3 py-1 bg-green-600 text-white rounded-md text-sm">Download Excel</button>
-                                    <button onClick={() => downloadAsPdf(escalationMatrix, 'Project Escalation Matrix', 'escalation-matrix')} className="px-3 py-1 bg-red-600 text-white rounded-md text-sm">Download PDF</button>
+                                    <button onClick={() => downloadAsExcel(escalationMatrix, 'escalation-matrix', `Escalation Matrix: ${selectedProject.name}`)} className="px-3 py-1 bg-green-600 text-white rounded-md text-sm">Download Excel</button>
+                                    <button onClick={() => downloadAsPdf(escalationMatrix, `Escalation Matrix: ${selectedProject.name}`, 'escalation-matrix')} className="px-3 py-1 bg-red-600 text-white rounded-md text-sm">Download PDF</button>
                                 </div>
                             )}
                         </div>
