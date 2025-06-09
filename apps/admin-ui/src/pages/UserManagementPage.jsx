@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, onSnapshot, addDoc, doc, updateDoc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 
 const DESIGNATIONS = [
   'Head - Delivery & Support', 'AVP - Support & Operations', 'Senior Manager - Operations',
@@ -18,7 +18,7 @@ const UserManagementPage = () => {
   
   const defaultNewUser = {
     email: '',
-    password: '',
+    password: '', // This will only be used for the form, not saved.
     designation: DESIGNATIONS[0],
     reportingTo: ''
   };
@@ -54,27 +54,23 @@ const UserManagementPage = () => {
   };
 
   const handleAddUser = async () => {
-      if (!currentUser.email || !currentUser.password) return;
-      
-      // IMPORTANT: This is a placeholder. For production, user creation MUST
-      // be handled by a secure Cloud Function to avoid exposing admin credentials.
-      // The function would use the Firebase Admin SDK to create the user.
-      alert(`SIMULATION: Creating user ${currentUser.email}. In a real app, a Cloud Function would handle this.`);
+      if (!currentUser.email || !currentUser.password) {
+        alert("Email and password are required.");
+        return;
+      }
       
       try {
-        // This is a placeholder for what the Cloud Function would do.
-        // We will create the user document in Firestore directly for now.
-        // NOTE: The Auth user is NOT created here. This requires a backend function.
-        const userDocRef = doc(db, "users", currentUser.email); // Use email as doc ID for simplicity
-        await setDoc(userDocRef, {
+        // Create user record in Firestore. We do not touch Firebase Auth.
+        await addDoc(collection(db, "users"), {
             email: currentUser.email,
+            displayName: currentUser.email.split('@')[0], // Create a default display name
             designation: currentUser.designation,
             reportingTo: currentUser.reportingTo,
-            isAdmin: false, // Default to non-admin
+            isAdmin: false,
             createdAt: serverTimestamp()
         });
         
-        alert(`User document for ${currentUser.email} created in Firestore.`);
+        alert(`User record for ${currentUser.email} created successfully.`);
         setIsModalOpen(false);
         setCurrentUser(null);
 
@@ -101,12 +97,10 @@ const UserManagementPage = () => {
   };
 
   const handleDeleteUser = async (userId) => {
-      if(window.confirm("Are you sure you want to delete this user? This will only remove their Firestore record, not their authentication account.")) {
+      if(window.confirm("Are you sure you want to delete this user record? This action cannot be undone.")) {
           try {
-              // IMPORTANT: This only deletes the Firestore record. Deleting the actual
-              // Firebase Auth user requires a Cloud Function with admin privileges.
               await deleteDoc(doc(db, "users", userId));
-              alert("User document deleted. A backend function is needed to delete the auth account.");
+              alert("User record deleted successfully.");
           } catch(error) {
               console.error("Error deleting user document:", error);
               alert("Failed to delete user document.");
