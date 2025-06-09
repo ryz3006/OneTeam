@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'; // useNavigate imported
 import { useTheme } from '../contexts/ThemeContext.jsx';
 
 // --- Icon Components ---
