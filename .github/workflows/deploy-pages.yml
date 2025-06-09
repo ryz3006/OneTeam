@@ -1,16 +1,10 @@
-# This workflow deploys your Public UI to GitHub Pages
-
-name: Deploy Public UI to GitHub Pages
+name: Deploy Both UIs to GitHub Pages
 
 on:
-  # Runs on pushes targeting the main branch
   push:
     branches: ["main"]
-
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
-# Allow this job to clone the repo and create a page deployment
 permissions:
   contents: read
   pages: write
@@ -30,22 +24,37 @@ jobs:
 
       - name: Install all dependencies
         run: npm install --workspaces
-
+      
+      # --- Build BOTH applications ---
       - name: Build Public UI
         run: npm run build --workspace=apps/public-ui
         env:
-          # These secrets are still needed to build the app correctly
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
           VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
           VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
-          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
-          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
-          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_PUBLIC_UI_APP_ID }}
+          # ... add other public-ui secrets if needed
+          
+      - name: Build Admin UI
+        run: npm run build --workspace=apps/admin-ui
+        env:
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          # ... add other admin-ui secrets if needed
+
+      # --- Prepare combined artifact for deployment ---
+      - name: Create combined deployment folder
+        run: |
+          mkdir ./gh-pages-artifact
+          cp -r ./apps/public-ui/dist/* ./gh-pages-artifact/
+          mkdir ./gh-pages-artifact/Admin
+          cp -r ./apps/admin-ui/dist/* ./gh-pages-artifact/Admin/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./apps/public-ui/dist
+          # Deploy the new combined folder
+          path: ./gh-pages-artifact
 
       - name: Deploy to GitHub Pages
         id: deployment
