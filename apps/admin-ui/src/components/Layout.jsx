@@ -31,8 +31,7 @@ const Layout = ({ children }) => {
   };
 
   const getPageTitle = () => {
-    // A small fix to make the title dynamic based on hash routing
-    const path = location.pathname;
+    const path = location.pathname; // With HashRouter, this will be the path after the #
     if (path.includes('/projects')) return 'Project Management';
     if (path.includes('/users')) return 'User Management';
     if (path.includes('/dashboard')) return 'Dashboard';
