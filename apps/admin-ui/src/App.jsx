@@ -1,9 +1,9 @@
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
-import AdminLoginPage from './pages/AdminLoginPage';
-import AdminDashboardPage from './pages/AdminDashboardPage';
-import ProjectManagementPage from './pages/ProjectManagementPage';
-import UserManagementPage from './pages/UserManagementPage';
+import AdminLoginPage from './pages/AdminLoginPage.jsx';
+import AdminDashboardPage from './pages/AdminDashboardPage.jsx';
+import ProjectManagementPage from './pages/ProjectManagementPage.jsx'; // .jsx added
+import UserManagementPage from './pages/UserManagementPage.jsx';   // .jsx added
 
 function App() {
   return (
