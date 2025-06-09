@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth } from '../firebase';
 import { doc, setDoc, onSnapshot } from 'firebase/firestore';
-import { updatePassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { updatePassword } from 'firebase/auth';
 
 const SettingsPage = () => {
     const [countries, setCountries] = useState([]);
     const [newCountry, setNewCountry] = useState({ name: '', code: '' });
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
-    const [newAdmin, setNewAdmin] = useState({ email: '', password: '' });
     const [message, setMessage] = useState('');
 
     useEffect(() => {
@@ -65,14 +64,6 @@ const SettingsPage = () => {
             setMessage('Failed to update password. You may need to re-login.');
         }
     };
-    
-    const handleAddAdmin = async (e) => {
-        e.preventDefault();
-        // This is a placeholder as direct creation is a security risk
-        // In a real app, this would use Cloud Functions to create an auth user
-        // and set a custom claim or Firestore document for admin rights.
-        alert('This feature is for demonstration. For security, creating admins should be handled by a backend Cloud Function.');
-    }
 
     return (
         <div className="space-y-8">
@@ -104,17 +95,6 @@ const SettingsPage = () => {
                 </form>
             </div>
             
-             {/* Add New Admin */}
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md opacity-50">
-                <h2 className="text-2xl font-semibold mb-4 text-gray-800 dark:text-white">Add New Admin (Demo)</h2>
-                <form onSubmit={handleAddAdmin} className="space-y-4">
-                    <input type="email" placeholder="New Admin Email" className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" disabled/>
-                    <input type="password" placeholder="Temporary Password" className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" disabled/>
-                    <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:cursor-not-allowed" disabled>Add Admin</button>
-                </form>
-                 <p className="text-xs text-gray-500 mt-2">This feature is disabled for UI security. Use a backend function for this action.</p>
-            </div>
-
             {message && <div className="mt-4 p-3 bg-green-100 text-green-800 rounded dark:bg-green-900/50 dark:text-green-300">{message}</div>}
         </div>
     );
