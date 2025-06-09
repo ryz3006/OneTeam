@@ -1,54 +1,45 @@
 import React from 'react';
-import { auth } from '../firebase';
-import { signOut } from 'firebase/auth';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+
+const DashboardCard = ({ title, description, link, linkText, icon }) => (
+  <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
+    <div className="flex items-center space-x-4 mb-4">
+      <div className="bg-blue-100 dark:bg-blue-900/50 p-3 rounded-full">
+        {icon}
+      </div>
+      <h3 className="text-xl font-semibold text-gray-800 dark:text-white">{title}</h3>
+    </div>
+    <p className="text-gray-600 dark:text-gray-400 mb-4">{description}</p>
+    <Link to={link} className="font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+      {linkText} &rarr;
+    </Link>
+  </div>
+);
 
 const AdminDashboardPage = () => {
-  const navigate = useNavigate();
-  const user = auth.currentUser;
-
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      navigate('/');
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
-  };
-
   return (
-    <div style={{ fontFamily: 'sans-serif', backgroundColor: '#f8f9fa', minHeight: '100vh' }}>
-      <header style={{ backgroundColor: '#343a40', color: 'white', padding: '15px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1 style={{ fontSize: '1.5rem', margin: 0 }}>Admin Panel</h1>
-        <div>
-          <span style={{ marginRight: '20px' }}>{user ? user.email : 'Admin'}</span>
-          <button onClick={handleLogout} style={{ backgroundColor: '#dc3545', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer' }}>
-            Logout
-          </button>
-        </div>
-      </header>
-      <main style={{ padding: '30px' }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          <h2 style={{ fontSize: '2rem', marginBottom: '30px' }}>Management Dashboard</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '30px' }}>
-            <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-              <h3 style={{ marginTop: 0, borderBottom: '1px solid #eee', paddingBottom: '10px' }}>Projects</h3>
-              <p>Create, edit, and assign users to projects.</p>
-              <Link to="/projects" style={{ textDecoration: 'none', backgroundColor: '#007bff', color: 'white', padding: '10px 15px', borderRadius: '4px', display: 'inline-block' }}>Manage Projects</Link>
-            </div>
-            <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-              <h3 style={{ marginTop: 0, borderBottom: '1px solid #eee', paddingBottom: '10px' }}>Users</h3>
-              <p>Invite new users and manage designations.</p>
-              <Link to="/users" style={{ textDecoration: 'none', backgroundColor: '#28a745', color: 'white', padding: '10px 15px', borderRadius: '4px', display: 'inline-block' }}>Manage Users</Link>
-            </div>
-            <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-              <h3 style={{ marginTop: 0, borderBottom: '1px solid #eee', paddingBottom: '10px' }}>Work Reports</h3>
-              <p>View work reports submitted by all users.</p>
-              <button style={{ backgroundColor: '#ffc107', color: 'black', border: 'none', padding: '10px 15px', borderRadius: '4px', cursor: 'pointer' }}>View Reports</button>
-            </div>
-          </div>
-        </div>
-      </main>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <DashboardCard
+        title="Projects"
+        description="Create, edit, and assign users to projects."
+        link="/projects"
+        linkText="Manage Projects"
+        icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>}
+      />
+      <DashboardCard
+        title="Users"
+        description="Invite new users and manage roles and designations."
+        link="/users"
+        linkText="Manage Users"
+        icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M15 21a6 6 0 00-9-5.197M15 21a6 6 0 006-6v-1a6 6 0 00-9-5.197" /></svg>}
+      />
+      <DashboardCard
+        title="Work Reports"
+        description="View and analyze work reports from all users."
+        link="#"
+        linkText="View Reports"
+        icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2m11 0v-2a4 4 0 00-4-4H9a4 4 0 00-4 4v2m11 0a2 2 0 002-2v-2a2 2 0 00-2-2h-2a2 2 0 00-2 2v2a2 2 0 002 2z" /></svg>}
+      />
     </div>
   );
 };
