@@ -2,13 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { db, auth } from '../firebase';
 import { collection, onSnapshot, addDoc, doc, deleteDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 
-// --- Static Data for Dropdowns ---
 const amcMsoOptions = ["Not Applicable", "AMC", "MSO"];
-const countryOptions = [
-    { name: 'India', code: 'IND' }, { name: 'United States', code: 'USA' }, { name: 'United Kingdom', code: 'GBR' },
-    { name: 'United Arab Emirates', code: 'ARE' }, { name: 'Singapore', code: 'SGP' }, { name: 'Australia', code: 'AUS' },
-    { name: 'Canada', code: 'CAN' }, { name: 'Germany', code: 'DEU' },
-];
 
 const ProjectManagementPage = () => {
   const [projects, setProjects] = useState([]);
@@ -16,30 +10,36 @@ const ProjectManagementPage = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [currentProject, setCurrentProject] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [countryOptions, setCountryOptions] = useState([]);
 
-  // Real-time listener for projects
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'projects'), (snapshot) => {
+    const projUnsubscribe = onSnapshot(collection(db, 'projects'), (snapshot) => {
       const projectsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setProjects(projectsData);
       setLoading(false);
     });
-    return () => unsubscribe();
+    
+    const settingsUnsubscribe = onSnapshot(doc(db, 'settings', 'countries'), (doc) => {
+        if (doc.exists()) {
+            setCountryOptions(doc.data().list || []);
+        }
+    });
+
+    return () => {
+        projUnsubscribe();
+        settingsUnsubscribe();
+    };
   }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    // Prevent spaces in customerName and product
-    if (name === 'customerName' || name === 'product') {
-        setCurrentProject(prev => ({ ...prev, [name]: value.replace(/\s/g, '') }));
-    } else {
-        setCurrentProject(prev => ({ ...prev, [name]: value }));
-    }
+    const sanitizedValue = (name === 'customerName' || name === 'product') ? value.replace(/\s/g, '') : value;
+    setCurrentProject(prev => ({ ...prev, [name]: sanitizedValue }));
   };
   
   const openCreateModal = () => {
     setIsEditing(false);
-    setCurrentProject({ name: '', crmId: '', amcMso: amcMsoOptions[0], contractDetails: '', customerName: '', countryCode: countryOptions[0].code, product: '' });
+    setCurrentProject({ name: '', crmId: '', amcMso: amcMsoOptions[0], contractDetails: '', customerName: '', countryCode: countryOptions.length > 0 ? countryOptions[0].code : '', product: '' });
     setIsModalOpen(true);
   };
   
@@ -58,18 +58,14 @@ const ProjectManagementPage = () => {
     try {
         if (isEditing) {
             const projectRef = doc(db, 'projects', currentProject.id);
-            const { id, ...dataToUpdate } = projectData; // Exclude ID from data
+            const { id, ...dataToUpdate } = projectData;
             await updateDoc(projectRef, dataToUpdate);
         } else {
             const randomId = Math.floor(100000 + Math.random() * 900000);
             const projectCode = `${projectData.customerName}_${projectData.countryCode}_${projectData.product}_${randomId}`;
             projectData.projectCode = projectCode;
 
-            await addDoc(collection(db, 'projects'), {
-                ...projectData,
-                createdBy: auth.currentUser.uid,
-                createdAt: serverTimestamp()
-            });
+            await addDoc(collection(db, 'projects'), { ...projectData, createdBy: auth.currentUser.uid, createdAt: serverTimestamp() });
         }
         setIsModalOpen(false);
         setCurrentProject(null);
@@ -81,40 +77,9 @@ const ProjectManagementPage = () => {
   
   const handleDeleteProject = async (id) => {
     if (window.confirm("Are you sure you want to delete this project?")) {
-        try {
-            await deleteDoc(doc(db, 'projects', id));
-        } catch (error) {
-            console.error("Error deleting project: ", error);
-        }
+        try { await deleteDoc(doc(db, 'projects', id)); } catch (error) { console.error("Error deleting project: ", error); }
     }
   };
-
-  const FormModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4">
-      <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-2xl">
-        <h2 className="text-2xl font-bold mb-6 dark:text-white">{isEditing ? 'Edit Project' : 'Create New Project'}</h2>
-        <form onSubmit={handleFormSubmit}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input type="text" name="name" value={currentProject.name || ''} onChange={handleInputChange} placeholder="Project Name" required className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"/>
-            <input type="text" name="crmId" value={currentProject.crmId || ''} onChange={handleInputChange} placeholder="CRMID (Optional)" className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"/>
-            <input type="text" name="customerName" value={currentProject.customerName || ''} onChange={handleInputChange} placeholder="Customer Name (no spaces)" required className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"/>
-            <input type="text" name="product" value={currentProject.product || ''} onChange={handleInputChange} placeholder="Product (no spaces)" required className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"/>
-            <select name="countryCode" value={currentProject.countryCode} onChange={handleInputChange} className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                {countryOptions.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
-            </select>
-             <select name="amcMso" value={currentProject.amcMso} onChange={handleInputChange} className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                {amcMsoOptions.map(o => <option key={o} value={o}>{o}</option>)}
-            </select>
-            <textarea name="contractDetails" value={currentProject.contractDetails || ''} onChange={handleInputChange} placeholder="Contract Details" required className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white h-24 md:col-span-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"></textarea>
-          </div>
-          <div className="flex justify-end mt-6 space-x-4">
-            <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded bg-gray-200 dark:bg-gray-600 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-500 font-semibold">Cancel</button>
-            <button type="submit" className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 font-semibold">{isEditing ? 'Save Changes' : 'Create Project'}</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
 
   return (
     <>
@@ -153,7 +118,34 @@ const ProjectManagementPage = () => {
           </table>
         </div>
       </div>
-      {isModalOpen && <FormModal />}
+      
+      {/* --- Form Modal --- */}
+      {isModalOpen && currentProject && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4">
+          <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-2xl">
+            <h2 className="text-2xl font-bold mb-6 dark:text-white">{isEditing ? 'Edit Project' : 'Create New Project'}</h2>
+            <form onSubmit={handleFormSubmit}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input type="text" name="name" value={currentProject.name || ''} onChange={handleInputChange} placeholder="Project Name" required className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"/>
+                <input type="text" name="crmId" value={currentProject.crmId || ''} onChange={handleInputChange} placeholder="CRMID (Optional)" className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"/>
+                <input type="text" name="customerName" value={currentProject.customerName || ''} onChange={handleInputChange} placeholder="Customer Name (no spaces)" required className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"/>
+                <input type="text" name="product" value={currentProject.product || ''} onChange={handleInputChange} placeholder="Product (no spaces)" required className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"/>
+                <select name="countryCode" value={currentProject.countryCode} onChange={handleInputChange} className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    {countryOptions.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
+                </select>
+                <select name="amcMso" value={currentProject.amcMso} onChange={handleInputChange} className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    {amcMsoOptions.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+                <textarea name="contractDetails" value={currentProject.contractDetails || ''} onChange={handleInputChange} placeholder="Contract Details" required className="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white h-24 md:col-span-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"></textarea>
+              </div>
+              <div className="flex justify-end mt-6 space-x-4">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded bg-gray-200 dark:bg-gray-600 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-500 font-semibold">Cancel</button>
+                <button type="submit" className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 font-semibold">{isEditing ? 'Save Changes' : 'Create Project'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   );
 };
