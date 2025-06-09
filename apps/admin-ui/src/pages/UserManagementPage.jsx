@@ -1,55 +1,44 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-
-const DESIGNATIONS = [
-  'Head - Delivery & Support', 'AVP - Support & Operations', 'Senior Manager - Operations',
-  'Manager - Operations', 'Associate Manager - Operations', 'Lead Engineer - Operations',
-  'Senior Operations Engineer', 'Operations Engineer', 'Lead - L1 Operations',
-  'Senior Engineer - L1 Operations', 'L1 Operations Engineer'
-];
 
 const UserManagementPage = () => {
-    const [users, setUsers] = useState([
-        { id: 1, name: 'Riyas Siddikk', email: 'riyas@example.com', designation: 'Head - Delivery & Support', reportingTo: 'N/A' },
-        { id: 2, name: 'Jane Doe', email: 'jane@example.com', designation: 'Senior Manager - Operations', reportingTo: 'Riyas Siddikk' },
-        { id: 3, name: 'John Smith', email: 'john@example.com', designation: 'Operations Engineer', reportingTo: 'Jane Doe' },
-    ]);
+  const [users, setUsers] = useState([
+    { id: 1, name: 'Riyas Siddikk', email: 'riyas@example.com', designation: 'Head - Delivery & Support', reportingTo: 'N/A' },
+    { id: 2, name: 'Jane Doe', email: 'jane@example.com', designation: 'Senior Manager - Operations', reportingTo: 'Riyas Siddikk' },
+    { id: 3, name: 'John Smith', email: 'john@example.com', designation: 'Operations Engineer', reportingTo: 'Jane Doe' },
+  ]);
 
   return (
-    <div style={{ fontFamily: 'sans-serif', backgroundColor: '#f8f9fa', minHeight: '100vh' }}>
-        <header style={{ backgroundColor: '#343a40', color: 'white', padding: '15px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h1 style={{ fontSize: '1.5rem', margin: 0 }}><Link to="/dashboard" style={{ color: 'white', textDecoration: 'none' }}>Admin Panel</Link></h1>
-            <button style={{ backgroundColor: '#28a745', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer' }}>+ Invite User</button>
-        </header>
-        <main style={{ padding: '30px' }}>
-            <div style={{ maxWidth: '1200px', margin: '0 auto', backgroundColor: 'white', padding: '30px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-                <h2 style={{ fontSize: '2rem', marginBottom: '20px', borderBottom: '1px solid #eee', paddingBottom: '15px' }}>User Management</h2>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                    <thead>
-                        <tr style={{ borderBottom: '2px solid #dee2e6' }}>
-                            <th style={{ padding: '12px' }}>Name</th>
-                            <th style={{ padding: '12px' }}>Email</th>
-                            <th style={{ padding: '12px' }}>Designation</th>
-                            <th style={{ padding: '12px' }}>Reporting To</th>
-                            <th style={{ padding: '12px' }}>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {users.map((user, index) => (
-                            <tr key={user.id} style={{ borderBottom: '1px solid #eee', backgroundColor: index % 2 === 0 ? '#f8f9fa' : 'white' }}>
-                                <td style={{ padding: '12px', fontWeight: '500' }}>{user.name}</td>
-                                <td style={{ padding: '12px' }}>{user.email}</td>
-                                <td style={{ padding: '12px' }}>{user.designation}</td>
-                                <td style={{ padding: '12px' }}>{user.reportingTo}</td>
-                                <td style={{ padding: '12px' }}>
-                                    <button style={{ marginRight: '10px', border: 'none', background: 'none', cursor: 'pointer', color: '#007bff' }}>Edit</button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-        </main>
+    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-semibold text-gray-800 dark:text-white">Users</h2>
+        <button className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">+ Invite User</button>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="min-w-full bg-white dark:bg-gray-800">
+          <thead className="bg-gray-50 dark:bg-gray-700">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Name</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Email</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Designation</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Reporting To</th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+            {users.map(user => (
+              <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{user.name}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{user.email}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{user.designation}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{user.reportingTo}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <a href="#" className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200">Edit</a>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };
