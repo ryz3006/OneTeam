@@ -1,9 +1,10 @@
+// File: apps/public-ui/vite.config.js
+
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// https://vitejs.dev/config/
 export default defineConfig({
-  // This base path should be the name of your GitHub repository.
-  base: '/6d-ops-oneteam/', 
+  // This MUST match your repository name
+  base: '/OneTeam/', 
   plugins: [react()],
 })
