@@ -31,6 +31,8 @@ const Layout = ({ children }) => {
   const handleLogout = async () => {
     try {
       await signOut(auth);
+      // On logout, clear selected project and return to login page
+      sessionStorage.removeItem('selectedProject');
       navigate('/');
     } catch (error) {
       console.error('Logout error:', error);
