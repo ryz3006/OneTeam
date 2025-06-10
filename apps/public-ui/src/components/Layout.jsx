@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { useTheme } from '../contexts/ThemeContext.jsx';
-import { auth } from '../firebase';
+import { useTheme } from './contexts/ThemeContext.jsx';
+import { auth } from './firebase';
 import { signOut } from 'firebase/auth';
-import LogoWithName from '../images/Logo_with_Name.png';
-import LogoOnly from '../images/Logo_only.png';
+import LogoWithName from './images/Logo_with_Name.png';
+import LogoOnly from './images/Logo_only.png';
 
 // --- Icon Components ---
 const DashboardIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>;
@@ -31,7 +31,6 @@ const Layout = ({ children }) => {
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      // On logout, clear selected project and return to login page
       sessionStorage.removeItem('selectedProject');
       navigate('/');
     } catch (error) {
@@ -40,7 +39,14 @@ const Layout = ({ children }) => {
   };
 
   const getPageTitle = () => {
-    // ... logic for page title
+    const path = location.pathname;
+    if (path.includes('/tasks')) return 'My Tasks';
+    if (path.includes('/reports')) return 'Work Report';
+    if (path.includes('/schedule')) return 'Shift Schedule';
+    if (path.includes('/documents')) return 'Document Repository';
+    if (path.includes('/profile')) return 'My Profile';
+    if (path.includes('/dashboard')) return 'Dashboard';
+    return 'OneTeam';
   };
   
   const navItems = [
@@ -52,6 +58,10 @@ const Layout = ({ children }) => {
     { to: "/profile", icon: <ProfileIcon />, label: "Profile" },
   ];
 
+  const commonLinkClasses = "flex items-center p-3 my-1 rounded-lg transition-colors";
+  const activeLinkClasses = "bg-green-500 text-white shadow-md";
+  const inactiveLinkClasses = "text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700";
+
   return (
     <div className="flex h-screen bg-gray-100 dark:bg-gray-900 font-sans">
       <aside className={`bg-white dark:bg-gray-800 text-gray-800 dark:text-white flex-shrink-0 space-y-6 py-7 absolute inset-y-0 left-0 transform ${isSidebarMinimized ? 'w-20' : 'w-64'} ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} md:relative md:translate-x-0 transition-all duration-300 ease-in-out z-20 shadow-lg flex flex-col`}>
@@ -60,7 +70,11 @@ const Layout = ({ children }) => {
         </a>
         <nav className="flex-1">
           {navItems.map(item => (
-             <NavLink key={item.label} to={item.to} className={({isActive}) => `flex items-center p-3 my-1 rounded-lg transition-colors ${isActive ? 'bg-blue-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'} ${isSidebarMinimized ? 'justify-center' : ''}`}>
+            <NavLink
+              key={item.label}
+              to={item.to}
+              className={({isActive}) => `${commonLinkClasses} ${isActive ? activeLinkClasses : inactiveLinkClasses} ${isSidebarMinimized ? 'justify-center' : ''}`}
+            >
               {item.icon}
               <span className={`mx-4 font-medium transition-opacity duration-300 ${isSidebarMinimized ? 'opacity-0 hidden' : 'opacity-100'}`}>{item.label}</span>
             </NavLink>
